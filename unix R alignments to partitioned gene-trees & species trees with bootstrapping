@@ -1,0 +1,1428 @@
+
+
+
+### start after the "phyluce_align_get_only_loci_with_min_taxa \" step in the phyluce pipeline
+
+### end up with each loci in a folder
+# mafft-nexus-edge-trimmed-clean-70p
+#               ├── uce-1008.nexus
+#               ├── uce-1014.nexus
+#               ├── uce-1039.nexus
+#               ...
+#               └── uce-991.nexus
+
+## cd to dir with ".nexus" files
+
+##### next in R we want to get the length of the files in this directory and convert to "phylip" format
+
+R
+setwd("mafft-nexus-edge-trimmed-clean-70p")
+
+library("phangorn")
+library("ips")
+
+## if files are in their own dirs change pattern to match nexus, phylip or fasta
+#files <- dir(".", recursive=TRUE, full.names=TRUE, pattern="\\.phylip$")
+
+## if files in one dir
+files=list.files(pattern = '.nexus')
+
+nex = length(files)
+nex
+# 368
+### get number of files for 1:length(1:n files)
+
+for(i in 1:length(1:368)){
+    phylip = read.nex(files[i])#, format="nexus")
+    this.name = files[i]
+    save.path = "mafft-nexus-edge-trimmed-clean-70p/"
+    write.phy(phylip, file=file.path(save.path, sprintf('%s.phylip', this.name)), interleave=FALSE)
+    
+}
+
+####### change to terminal
+
+
+####### now we need to put each ".phylip" in its own dir as we will be making thousands of files
+
+
+####### find and copy phylip files and place into their own directory
+
+find . -name "*.phylip" -exec sh -c 'NEWDIR=`basename "$1new" ` ; mkdir "$NEWDIR" ; mv "$1" "$NEWDIR" ' _ {} \;
+
+####### if already exist in another dir from previous analyses in unix terminal
+#find . -name "*.phylip" -exec cp {} newDIR \;
+
+
+######## move blank cfg file into all sub-directories, see blank cfg page for example, this is a must do
+
+find . -type d -exec cp partition_finder.cfg {} \;
+
+######## keep R open 
+
+######## get rid of positions with only - and or ? in R, this section is important if you skip internal trimming
+
+setwd("mafft-nexus-edge-trimmed-clean-70p/")
+
+phylip_files_list = list.files(pattern = ".phylip$", recursive = TRUE)
+#config_files_list = list.files(pattern = ".cfg$", recursive = TRUE)
+#config_files_list = config_files_list[-1] ##### if other .cfg file in directory
+files = dir(".", recursive=TRUE, full.names=TRUE, pattern="\\.phylip$")
+
+### read in files
+df = list()
+for (i in 1:length(files)) {
+	df[[i]] <- read.phy(files[i])
+}
+
+
+### must be same length as phylip files, going to make new files without bad columns 
+phylip_files_list_1 = sub(".*/", "", phylip_files_list)
+
+len = length(phylip_files_list)
+
+for(i in 1:length(1:len)){
+df[[i]] = deleteEmptyCells(df[[i]], nset=c("-", "n", "?"), quiet=FALSE)
+   
+     config_name = paste0("mafft-nexus-edge-trimmed-clean-70p/", phylip_files_list_1[i],"new")
+
+save.path = config_name
+write.phy(df[[i]], file=file.path(save.path, phylip_files_list_1[i]))
+
+}
+
+#######
+
+#######################################################                    
+#######################################################
+######################################################## 
+
+#### MAKE CHARACTER SETS
+###################################
+
+#library("seqinr")
+library("ips")
+#library("RCurl")
+
+processFilelength <- function(f) {
+  df <- read.phy(f)
+  
+}
+
+########################## get lengths of loci and counts 1:half half+1 to end
+
+files <- dir(".", recursive=TRUE, full.names=TRUE, pattern="\\.phylip$")
+
+# Apply the function to all files.
+result <- sapply(files, processFilelength)
+results = unname(result)
+
+### read in files
+df = list()
+for (i in 1:length(files)) {
+	df[[i]] <- read.phy(files[i])
+}
+
+
+is.even <- function(x) x %% 2 == 0
+
+half_length = list()
+half_length_odd = list()
+half_length_odd1 = list()
+half_total = list()
+for (i in 1:length(result))  {
+	#loci = results[1]
+ if(is.even(ncol(df[[i]])) == TRUE){
+ 	#half_length[i] = ncol(result[[i]])*0.5
+ 	half_length[i] = names(result[i])
+}   else {
+   	#loci = results[i]
+   #half_length_odd[i] = floor(ncol(result[[i]])*0.5)
+   #half_length_odd1[i] = floor(ncol(result[[i]])*0.5)+1
+   half_length_odd[i] = names(result[i])
+}}
+
+## A helper function that tests whether an object is either NULL _or_ 
+## a list of NULLs
+is.NullOb <- function(x) is.null(x) | all(sapply(x, is.null))
+
+## Recursively step down into list, removing all such objects 
+rmNullObs <- function(x) {
+   x <- Filter(Negate(is.NullOb), x)
+   lapply(x, function(x) if (is.list(x)) rmNullObs(x) else x)
+}
+
+uce_list_even = rmNullObs(half_length)
+uce_list_odd = rmNullObs(half_length_odd)
+df = list()
+#uce_CORE_list = list()
+#L_length  = list()
+#L_inner50_start = list()
+#fringe = list()
+charlist = list()
+dfo = list()
+uce_CORE_listo = list()
+for (i in 1:length(uce_list_even))  {
+	df[[i]] <- read.phy(uce_list_even[[i]])
+half_length = ncol(df[[i]])*0.5
+start_uceL = half_length-79
+end_uceR = half_length+80
+uce_CORE_list = paste(start_uceL, end_uceR, sep = "-")
+uce_CORE_list = paste(uce_CORE_list, ";", sep="")
+uce_CORE_list = paste("uce_core =", uce_CORE_list, spe="")
+
+#start_uceL_list[[i]] = half_length[,1:start_uceL] #change 2 to i
+#uce_CORE_list[1] = df[,start_uceL:end_uceR]  #+half_total2[[2]]  #change 2 
+L_length = 1:unlist(half_length)
+L_no_uce = 1:unlist(start_uceL-1)
+L_actual_length = length(1:(start_uceL-1))
+#n <- 10
+#nr <- nrow(df)
+#split(df, rep(1:ceiling(nr/n), each=n, length.out=nr))
+
+max <- floor(L_actual_length*0.2)
+ x <- seq_along(L_no_uce)
+ d1 <- split(L_no_uce, ceiling(x/max))
+ d1
+
+	 if(length(d1)>5){
+ 	d1$'5' = unlist(d1$'5')
+ 	d1$'6' = unlist(d1$'6')
+ 	d1$'5' = c(d1$'5', d1$'6')
+ 	d1$'6' <- NULL 
+ 	d1$'1' = L_no_uce[min(L_no_uce):length(d1$'5')]
+ 	d1$'2' = L_no_uce[max(d1$'1')+1:length(d1$'4')]
+ 	d1$'3' = L_no_uce[max(d1$'2')+1:length(d1$'3')]
+	d1$'4' = L_no_uce[max(d1$'3')+1:length(d1$'2')]
+	d1$'5' = L_no_uce[max(d1$'4')+1:max(L_no_uce)]
+	d1$'5' = d1$'5'[!is.na(d1$'5')]
+ 	} else {
+   	d1=d1
+}
+d1
+
+
+L_1 = paste(1, max(d1$'1'), sep="-")
+L_2 = paste(min(d1$'2'), max(d1$'2'), sep="-")
+L_3 = paste(min(d1$'3'), max(d1$'3'), sep="-")
+L_4 = paste(min(d1$'4'), max(d1$'4'), sep="-")
+L_5 = paste(min(d1$'5'), max(d1$'5'), sep="-")
+
+locilenght = ncol(df[[i]])
+R_innerfinge_start = half_length+81
+R_length = unlist(R_innerfinge_start:locilenght)
+R_actual_length = length(R_innerfinge_start:locilenght)
+
+max <- floor(R_actual_length*0.2)
+ x <- seq_along(R_length)
+ d2 <- split(R_length, ceiling(x/max))
+ d2
+
+	 if(length(d2)>5){
+ 	d2$'5' = unlist(d2$'5')
+ 	d2$'6' = unlist(d2$'6')
+ 	d2$'5' = c(d2$'5', d2$'6')
+ 	d2$'6' <- NULL #apply( cbind( list1, list2 ) , 1 , unlist )
+ 	} else {
+   	d2=d2
+}
+d2
+
+R_1 = paste(min(d2$'1'), max(d2$'1'), sep="-")
+R_2 = paste(min(d2$'2'), max(d2$'2'), sep="-")
+R_3 = paste(min(d2$'3'), max(d2$'3'), sep="-")
+R_4 = paste(min(d2$'4'), max(d2$'4'), sep="-")
+R_5 = paste(min(d2$'5'), max(d2$'5'), sep="-")
+
+LR1 = paste("LR1 =", L_1, R_5, sep=" ")
+LR2 = paste("LR2 =", L_2, R_4, sep=" ")
+LR3 = paste("LR3 =", L_3, R_3, sep=" ")
+LR4 = paste("LR4 =", L_4, R_2, sep=" ")
+LR5 = paste("LR5 =", L_5, R_1, sep=" ")
+LR1 = paste(LR1, ";", sep="")
+LR2 = paste(LR2, ";", sep="")
+LR3 = paste(LR3, ";", sep="")
+LR4 = paste(LR4, ";", sep="")
+LR5 = paste(LR5, ";", sep="")
+
+charlist[i] = paste(uce_CORE_list, LR1, LR2, LR3, LR4, LR5, sep="\n")
+names(charlist[[i]]) = uce_list_even[i]
+}
+
+ xxx  = as.matrix(charlist)
+row.names(xxx) = uce_list_even
+row.names(xxx) = sub("./", "", row.names(xxx))
+
+ #163-236, 356-455
+ 
+ 
+charlist_o=list()
+for (i in 1:length(uce_list_odd))  {
+
+dfo[[i]] <- read.phy(uce_list_odd[[i]])
+
+half_length = floor(ncol(dfo[[i]])*0.5)
+start_uceL = floor(half_length)-79
+end_uceR = floor(half_length)+80
+uce_CORE_listo = paste(start_uceL, end_uceR, sep = "-")
+uce_CORE_listo = paste(uce_CORE_listo, ";", sep="")
+uce_CORE_listo = paste("uce_core =", uce_CORE_listo, spe="")
+
+#L_length = 1:unlist(half_length)
+L_no_uce = 1:unlist(start_uceL-1)
+L_actual_length = length(1:(start_uceL-1))
+#n <- 10
+#nr <- nrow(df)
+#split(df, rep(1:ceiling(nr/n), each=n, length.out=nr))
+
+max <- floor(L_actual_length*0.2)
+ x <- seq_along(L_no_uce)
+ d1 <- split(L_no_uce, ceiling(x/max))
+ d1
+
+	 if(length(d1)>5){
+ 	d1$'5' = unlist(d1$'5')
+ 	d1$'6' = unlist(d1$'6')
+ 	d1$'5' = c(d1$'5', d1$'6')
+ 	d1$'6' <- NULL 
+ 	d1$'1' = L_no_uce[min(L_no_uce):length(d1$'5')]
+ 	d1$'2' = L_no_uce[max(d1$'1')+1:length(d1$'4')]
+ 	d1$'3' = L_no_uce[max(d1$'2')+1:length(d1$'3')]
+	d1$'4' = L_no_uce[max(d1$'3')+1:length(d1$'2')]
+	d1$'5' = L_no_uce[max(d1$'4')+1:max(L_no_uce)]
+	d1$'5' = d1$'5'[!is.na(d1$'5')]
+ 	} else {
+   	d1=d1
+}
+d1
+
+
+L_1 = paste(1, max(d1$'1'), sep="-")
+L_2 = paste(min(d1$'2'), max(d1$'2'), sep="-")
+L_3 = paste(min(d1$'3'), max(d1$'3'), sep="-")
+L_4 = paste(min(d1$'4'), max(d1$'4'), sep="-")
+L_5 = paste(min(d1$'5'), max(d1$'5'), sep="-")
+
+
+
+locilenght = ncol(dfo[[i]])
+R_innerfinge_start = half_length+81
+R_length = unlist(R_innerfinge_start:locilenght)
+R_actual_length = length(R_innerfinge_start:locilenght)
+
+max <- floor(R_actual_length*0.2)
+ x <- seq_along(R_length)
+ d2 <- split(R_length, ceiling(x/max))
+ d2
+
+	 if(length(d2)>5){
+ 	d2$'5' = unlist(d2$'5')
+ 	d2$'6' = unlist(d2$'6')
+ 	d2$'5' = c(d2$'5', d2$'6')
+ 	d2$'6' <- NULL #apply( cbind( list1, list2 ) , 1 , unlist )
+ 	} else {
+   	d2=d2
+}
+d2
+
+R_1 = paste(min(d2$'1'), max(d2$'1'), sep="-")
+R_2 = paste(min(d2$'2'), max(d2$'2'), sep="-")
+R_3 = paste(min(d2$'3'), max(d2$'3'), sep="-")
+R_4 = paste(min(d2$'4'), max(d2$'4'), sep="-")
+R_5 = paste(min(d2$'5'), max(d2$'5'), sep="-")
+
+LR1 = paste("LR1 =", L_1, R_5, sep=" ")
+LR2 = paste("LR2 =", L_2, R_4, sep=" ")
+LR3 = paste("LR3 =", L_3, R_3, sep=" ")
+LR4 = paste("LR4 =", L_4, R_2, sep=" ")
+LR5 = paste("LR5 =", L_5, R_1, sep=" ")
+LR1 = paste(LR1, ";", sep="")
+LR2 = paste(LR2, ";", sep="")
+LR3 = paste(LR3, ";", sep="")
+LR4 = paste(LR4, ";", sep="")
+LR5 = paste(LR5, ";", sep="")
+
+charlist_o[i] = paste(uce_CORE_listo, LR1, LR2, LR3, LR4, LR5, sep="\n")
+names(charlist_o[[i]]) = uce_list_odd[i]
+}
+
+xx  = as.matrix(charlist_o)
+row.names(xx) = uce_list_odd
+row.names(xx) = sub("./", "", row.names(xx))
+
+ix = rbind(xxx,xx) 
+row.names(ix) = gsub(".*/", "", row.names(ix))
+
+####################
+#R
+#setwd("")
+
+#phylip_files_list = list.files(pattern = ".phylip$", recursive = TRUE)
+config_files_list = list.files(pattern = ".cfg$", recursive = TRUE)
+
+config_files_list = config_files_list[-1] ##### if other .cfg file in directory
+
+### must be same length
+#phylip_files_list_1 = sub(".*/", "", phylip_files_list)
+len = length(phylip_files_list)
+len 
+
+#XI = ix[row.names(ix) %in% phylip_files_list[i], ]
+
+
+for(i in 1:length(1:len)){
+phylip_files = readLines(phylip_files_list[i])
+phylip_lengths = sub(".* ", "", phylip_files)
+phylip_lengths = phylip_lengths[i]
+
+  
+
+XI = ix[row.names(ix) %in% phylip_files_list_1[i], ]
+#XI = ix[row.names(ix) %in% phylip_files_list[i], ]
+
+#charlistsss = match(x, y, nomatch = 0)
+config_files = readLines(config_files_list[i])
+### preset .config file for partitonfinder with charsets "All = 1-;"
+old = "All = 1-;"
+
+new_config_files = sub(old, XI, config_files)
+#letter <- phylip_lengths #i
+#rt <- paste0("All = 1-",letter, ";")
+#fin_len = sub(old, rt, old)
+
+#new_config_files = sub("All = 1-;", fin_len, config_files)
+
+oldy = "alignment = ;"
+let = phylip_files_list[i] #[i]
+letters = sub(".*/", "", let)
+rtt <- paste0("alignment = ",letters, ";")
+new_config_files = sub("alignment = ;", rtt, new_config_files)
+new_config_files
+
+
+
+config_name = config_files_list[i] #[i]
+config_name = sub("/partition_finder.cfg.*", "", config_name)
+
+#### Modify to working dir
+config_name = paste0("mafft-nexus-edge-trimmed-clean-70p/", config_name)
+
+save.path = config_name
+write(new_config_files, file=file.path(save.path, "partition_finder.cfg"))
+}
+
+#quit()
+#n
+
+
+
+####### cd to directory where sub folders are in terminal not in R & run partionfinder
+
+for dir in uce-*; do
+  for file in "${dir}"/*.phylip
+do
+
+python ~/Desktop/partitionfinder-2.1.1/PartitionFinder.py $file
+
+done
+
+done
+
+### for any that failed
+
+best_parti_list = list.files(pattern = "best_scheme.txt", recursive = TRUE)
+length(best_parti_list)
+# [1] 368
+
+##example #### python PartitionFinder.py /uce-534.nexus.phylipnew/uce-534.nexus.phylip --no-ml-tree
+
+##########
+######### make partition for raxml
+R
+
+#setwd("newDIR/")
+
+config_files_list = list.files(pattern = "best_scheme.txt$", recursive = TRUE)
+listy = list.files(pattern = ".phylip$", recursive = TRUE)
+parti_best = list.files(pattern = "best_scheme.txt$", recursive = TRUE)
+
+parti_best
+len = length(parti_best)
+
+for(i in 1:length(1:len)){
+
+##phylip_files = readLines(parti_best[i])
+
+phylip_files = readChar(parti_best[i], file.info(parti_best[i])$size) ##[i]
+
+
+phylip_lengths = sub("\nMrBayes block for partition definitions\nWarning:.* ", "", phylip_files)
+
+phylip_lengths = sub("307-321.\n\n.*", "", phylip_lengths)
+
+#phylip_lengths = sub(" .*Choose the scheme with the lowest AIC/AICc/BIC score. Note that these re-runs will be quick!", "", phylip_lengths)
+phylip_lengths = sub(".*quick!", "", phylip_lengths)
+phylip_lengths = sub("Settings", "", phylip_lengths)
+#phylip_lengths = sub("PartitionFind", "", phylip_lengths)
+
+config_name = config_files_list[i] #[i]
+
+config_name = sub("analysis/best_scheme.txt.*", "", config_name)
+
+#config_name = paste0("newDIR/", config_name)
+config_name = paste0("mafft-nexus-edge-trimmed-clean-70p/",  config_name)
+save.path = config_name
+
+write(phylip_lengths, file=file.path(save.path, "best_parti.txt"))
+
+}
+
+#quit()
+#n
+
+
+library("ips")
+
+#setwd("just_nex/")
+
+
+setwd(new_phylip/")
+
+
+parti_best = list.files(pattern = "best_parti.txt$", recursive = TRUE)
+
+phylip_files = list.files(pattern = ".phylip$", recursive = TRUE)
+
+config_files_list = list.files(pattern = "best_scheme.txt$", recursive = TRUE)
+
+len = length(parti_best)
+
+
+##### in terminal cd to directory where sub folders are and run, 
+##### can make this a .sh script and run in R in parallel with mclapply if you have thousands of trees see below as in mrbayes
+
+cd 
+
+for dir in uce-*; do
+
+name="${dir}best.tre"
+
+cd "${dir}"
+for f in $(ls *.phylip); do
+
+
+raxmlHPC-PTHREADS-SSE3 \
+    -m GTRGAMMA \
+    -N 20 \
+    -p 19876 \
+    -n "${name}" \
+    -q best_parti.txt \
+    -s $f \
+    -T 2
+cd ..
+done
+
+done 
+
+#### cd to directory with all folders
+##perhaps put tree_results dir one above
+
+mkdir tree_results
+
+find . -name "RAxML_bestTree*" -exec cp {} tree_results/ \;
+
+
+#### make merged trees all in one for astral
+cd tree_results/
+sed -n wMrBayes_Eupho_all.merge.tre *.tre
+
+
+#### make merged trees all in one for astral
+cd tree_results/
+
+sed -n wall.merge.tre *.tre
+
+###### now ready to run ASTRAL
+###### for bootstrapping 
+
+for dir in uce-*; do
+
+name="${dir}_boot.tre"
+
+cd "${dir}"
+for f in $(ls *.phylip); do
+
+raxmlHPC-PTHREADS-SSE3 \
+    -m GTRGAMMA \
+    -N 200 \
+    -p 25258 \
+    -b 2045 \
+    -n "${name}" \
+    -s $f \
+    -T 2 \
+    -q best_parti.txt
+cd ..
+done
+
+done &
+
+# reconcile the "best" ML tree with the bootreps
+
+for dir in uce-*; do
+
+names="RAXML_reconcile_bs_tre_out${dir}.tre" 
+name="RAxML_bootstrap.${dir}_boot.tre"
+raxmltree="RAxML_bestTree.${dir}best.tre"
+
+cd "${dir}"
+for f in $(ls *.phylip); do
+
+
+raxmlHPC-SSE3 \
+    -m GTRGAMMA \
+    -f b \
+    -t "${raxmltree}" \
+    -z "${name}" \
+    -n "${names}"
+cd ..
+done
+
+done 
+
+mkdir boot_tree_results
+mkdir boot_trees
+
+#find . -type f -iname "RAxML_bestTree*" -exec cp -t tree_results/ {} \;
+
+#mkdir tree_results_mrB_msct
+
+find . -name "*_boot.tre" -exec cp {} boot_trees/ \;
+
+find . -name "RAxML_bipartitions.RAXML_reconcile_bs_tre_out*" -exec cp {} boot_tree_results/ \;
+
+sed -n wall.merge.boot_straped.tre *.tre
+
+
+
+
+#####################################################################
+
+####################################################################################################
+
+###########################################################################################
+
+#################################### do for MrB ###########################################
+
+###########################################################################################
+
+##### cp in nexus files from phyluce e.g. cp dir1/*.nexus$ dir2 
+
+R
+library(ips)
+library("phangorn")
+
+
+setwd("mafft-nexus-edge-trimmed-clean-70p-readyrunraxml/mrb/")
+files=list.files(pattern = '.nexus$')
+nex = length(files)
+### get number of files for 1:length(1:n files)
+for(i in 1:length(1:368)){
+    phylip = read.nex(files[i])#, format="nexus")
+    this.name = files[i]
+    save.path = "/mafft-nexus-edge-trimmed-clean-70p-readyrunraxml/mrb/"
+    write.phy(phylip, file=file.path(save.path, sprintf('%s.phylip', this.name)), interleave=FALSE)
+    
+}
+
+
+####### find and copy phylip files and place into their own directory, skip this part as copied older dir
+
+
+
+find . -name "*.phylip" -exec sh -c 'NEWDIR=`basename "$1new_mrb" ` ; mkdir "$NEWDIR" ; mv "$1" "$NEWDIR" ' _ {} \;
+
+
+######## move blank cfg file into all sub-directories
+#cd mrb/
+
+find . -type d -exec cp partition_finder.cfg {} \;
+
+## remove by name
+##find . -type d -name results -exec rmdir {} \;
+
+################ keep R open with objects ix from above
+
+######## get rid of positions with only - and or ?
+
+setwd("mafft-nexus-edge-trimmed-clean-70p-readyrunraxml/mrb/")
+library(ips)
+phylip_files_list = list.files(pattern = ".phylip$", recursive = TRUE)
+#config_files_list = list.files(pattern = ".cfg$", recursive = TRUE)
+#config_files_list = config_files_list[-1] ##### if other .cfg file in directory
+files <- dir(".", recursive=TRUE, full.names=TRUE, pattern="\\.phylip$")
+
+### read in files
+df = list()
+for (i in 1:length(files)) {
+	df[[i]] <- read.phy(files[i])
+}
+
+
+### must be same length
+phylip_files_list_1 = sub(".*/", "", phylip_files_list)
+
+len = length(phylip_files_list)
+
+for(i in 1:length(1:len)){
+df[[i]] = deleteEmptyCells(df[[i]], nset=c("-", "n", "?"), quiet=FALSE)
+   
+     config_name = paste0("mafft-nexus-edge-trimmed-clean-70p-readyrunraxml/mrb/", phylip_files_list_1[i],"new_mrb")
+
+save.path = config_name
+write.phy(df[[i]], file=file.path(save.path, phylip_files_list_1[i]))
+
+}
+
+#########################
+
+#######################################################                    
+#########################################################
+###################################################### 
+
+#### MAKE CHARACTER SETS
+
+################ make partitionfinder cfg files
+
+R
+
+#### MAKE CHARACTER SETS
+###################################
+#setwd("new_phylip/")
+library("seqinr")
+library("ips")
+library("RCurl")
+processFilelength <- function(f) {
+  df <- read.phy(f)
+  # ...and do stuff...
+  #half_length = floor(length(df[1,])*0.5) 
+}
+
+#result <- sapply(files, processFilelength)
+########################## get lengths of loci and counts 1:half half+1 to end
+
+files <- dir(".", recursive=TRUE, full.names=TRUE, pattern="\\.phylip$")
+
+# Apply the function to all files.
+result <- sapply(files, processFilelength)
+results = unname(result)
+
+### read in files
+df = list()
+for (i in 1:length(files)) {
+	df[[i]] <- read.phy(files[i])
+}
+
+
+is.even <- function(x) x %% 2 == 0
+
+half_length = list()
+half_length_odd = list()
+half_length_odd1 = list()
+half_total = list()
+for (i in 1:length(result))  {
+	#loci = results[1]
+ if(is.even(ncol(df[[i]])) == TRUE){
+ 	#half_length[i] = ncol(result[[i]])*0.5
+ 	half_length[i] = names(result[i])
+}   else {
+   	#loci = results[i]
+   #half_length_odd[i] = floor(ncol(result[[i]])*0.5)
+   #half_length_odd1[i] = floor(ncol(result[[i]])*0.5)+1
+   half_length_odd[i] = names(result[i])
+}}
+
+## A helper function that tests whether an object is either NULL _or_ 
+## a list of NULLs
+is.NullOb <- function(x) is.null(x) | all(sapply(x, is.null))
+
+## Recursively step down into list, removing all such objects 
+rmNullObs <- function(x) {
+   x <- Filter(Negate(is.NullOb), x)
+   lapply(x, function(x) if (is.list(x)) rmNullObs(x) else x)
+}
+
+uce_list_even = rmNullObs(half_length)
+uce_list_odd = rmNullObs(half_length_odd)
+df = list()
+#uce_CORE_list = list()
+#L_length  = list()
+#L_inner50_start = list()
+#fringe = list()
+charlist = list()
+dfo = list()
+uce_CORE_listo = list()
+for (i in 1:length(uce_list_even))  {
+	df[[i]] <- read.phy(uce_list_even[[i]])
+half_length = ncol(df[[i]])*0.5
+start_uceL = half_length-79
+end_uceR = half_length+80
+uce_CORE_list = paste(start_uceL, end_uceR, sep = "-")
+uce_CORE_list = paste(uce_CORE_list, ";", sep="")
+uce_CORE_list = paste("uce_core =", uce_CORE_list, spe="")
+
+#start_uceL_list[[i]] = half_length[,1:start_uceL] #change 2 to i
+#uce_CORE_list[1] = df[,start_uceL:end_uceR]  #+half_total2[[2]]  #change 2 
+L_length = 1:unlist(half_length)
+L_no_uce = 1:unlist(start_uceL-1)
+L_actual_length = length(1:(start_uceL-1))
+#n <- 10
+#nr <- nrow(df)
+#split(df, rep(1:ceiling(nr/n), each=n, length.out=nr))
+
+max <- floor(L_actual_length*0.2)
+ x <- seq_along(L_no_uce)
+ d1 <- split(L_no_uce, ceiling(x/max))
+ d1
+
+	 if(length(d1)>5){
+ 	d1$'5' = unlist(d1$'5')
+ 	d1$'6' = unlist(d1$'6')
+ 	d1$'5' = c(d1$'5', d1$'6')
+ 	d1$'6' <- NULL 
+ 	d1$'1' = L_no_uce[min(L_no_uce):length(d1$'5')]
+ 	d1$'2' = L_no_uce[max(d1$'1')+1:length(d1$'4')]
+ 	d1$'3' = L_no_uce[max(d1$'2')+1:length(d1$'3')]
+	d1$'4' = L_no_uce[max(d1$'3')+1:length(d1$'2')]
+	d1$'5' = L_no_uce[max(d1$'4')+1:max(L_no_uce)]
+	d1$'5' = d1$'5'[!is.na(d1$'5')]
+ 	} else {
+   	d1=d1
+}
+d1
+
+
+L_1 = paste(1, max(d1$'1'), sep="-")
+L_2 = paste(min(d1$'2'), max(d1$'2'), sep="-")
+L_3 = paste(min(d1$'3'), max(d1$'3'), sep="-")
+L_4 = paste(min(d1$'4'), max(d1$'4'), sep="-")
+L_5 = paste(min(d1$'5'), max(d1$'5'), sep="-")
+
+locilenght = ncol(df[[i]])
+R_innerfinge_start = half_length+81
+R_length = unlist(R_innerfinge_start:locilenght)
+R_actual_length = length(R_innerfinge_start:locilenght)
+
+max <- floor(R_actual_length*0.2)
+ x <- seq_along(R_length)
+ d2 <- split(R_length, ceiling(x/max))
+ d2
+
+	 if(length(d2)>5){
+ 	d2$'5' = unlist(d2$'5')
+ 	d2$'6' = unlist(d2$'6')
+ 	d2$'5' = c(d2$'5', d2$'6')
+ 	d2$'6' <- NULL #apply( cbind( list1, list2 ) , 1 , unlist )
+ 	} else {
+   	d2=d2
+}
+d2
+
+R_1 = paste(min(d2$'1'), max(d2$'1'), sep="-")
+R_2 = paste(min(d2$'2'), max(d2$'2'), sep="-")
+R_3 = paste(min(d2$'3'), max(d2$'3'), sep="-")
+R_4 = paste(min(d2$'4'), max(d2$'4'), sep="-")
+R_5 = paste(min(d2$'5'), max(d2$'5'), sep="-")
+
+LR1 = paste("LR1 =", L_1, R_5, sep=" ")
+LR2 = paste("LR2 =", L_2, R_4, sep=" ")
+LR3 = paste("LR3 =", L_3, R_3, sep=" ")
+LR4 = paste("LR4 =", L_4, R_2, sep=" ")
+LR5 = paste("LR5 =", L_5, R_1, sep=" ")
+LR1 = paste(LR1, ";", sep="")
+LR2 = paste(LR2, ";", sep="")
+LR3 = paste(LR3, ";", sep="")
+LR4 = paste(LR4, ";", sep="")
+LR5 = paste(LR5, ";", sep="")
+
+charlist[i] = paste(uce_CORE_list, LR1, LR2, LR3, LR4, LR5, sep="\n")
+names(charlist[[i]]) = uce_list_even[i]
+}
+
+ xxx  = as.matrix(charlist)
+row.names(xxx) = uce_list_even
+row.names(xxx) = sub("./", "", row.names(xxx))
+
+ #163-236, 356-455
+ 
+ 
+charlist_o=list()
+for (i in 1:length(uce_list_odd))  {
+
+dfo[[i]] <- read.phy(uce_list_odd[[i]])
+
+half_length = floor(ncol(dfo[[i]])*0.5)
+start_uceL = floor(half_length)-79
+end_uceR = floor(half_length)+80
+uce_CORE_listo = paste(start_uceL, end_uceR, sep = "-")
+uce_CORE_listo = paste(uce_CORE_listo, ";", sep="")
+uce_CORE_listo = paste("uce_core =", uce_CORE_listo, spe="")
+
+#L_length = 1:unlist(half_length)
+L_no_uce = 1:unlist(start_uceL-1)
+L_actual_length = length(1:(start_uceL-1))
+#n <- 10
+#nr <- nrow(df)
+#split(df, rep(1:ceiling(nr/n), each=n, length.out=nr))
+
+max <- floor(L_actual_length*0.2)
+ x <- seq_along(L_no_uce)
+ d1 <- split(L_no_uce, ceiling(x/max))
+ d1
+
+	 if(length(d1)>5){
+ 	d1$'5' = unlist(d1$'5')
+ 	d1$'6' = unlist(d1$'6')
+ 	d1$'5' = c(d1$'5', d1$'6')
+ 	d1$'6' <- NULL 
+ 	d1$'1' = L_no_uce[min(L_no_uce):length(d1$'5')]
+ 	d1$'2' = L_no_uce[max(d1$'1')+1:length(d1$'4')]
+ 	d1$'3' = L_no_uce[max(d1$'2')+1:length(d1$'3')]
+	d1$'4' = L_no_uce[max(d1$'3')+1:length(d1$'2')]
+	d1$'5' = L_no_uce[max(d1$'4')+1:max(L_no_uce)]
+	d1$'5' = d1$'5'[!is.na(d1$'5')]
+ 	} else {
+   	d1=d1
+}
+d1
+
+
+L_1 = paste(1, max(d1$'1'), sep="-")
+L_2 = paste(min(d1$'2'), max(d1$'2'), sep="-")
+L_3 = paste(min(d1$'3'), max(d1$'3'), sep="-")
+L_4 = paste(min(d1$'4'), max(d1$'4'), sep="-")
+L_5 = paste(min(d1$'5'), max(d1$'5'), sep="-")
+
+
+
+locilenght = ncol(dfo[[i]])
+R_innerfinge_start = half_length+81
+R_length = unlist(R_innerfinge_start:locilenght)
+R_actual_length = length(R_innerfinge_start:locilenght)
+
+max <- floor(R_actual_length*0.2)
+ x <- seq_along(R_length)
+ d2 <- split(R_length, ceiling(x/max))
+ d2
+
+	 if(length(d2)>5){
+ 	d2$'5' = unlist(d2$'5')
+ 	d2$'6' = unlist(d2$'6')
+ 	d2$'5' = c(d2$'5', d2$'6')
+ 	d2$'6' <- NULL #apply( cbind( list1, list2 ) , 1 , unlist )
+ 	} else {
+   	d2=d2
+}
+d2
+
+R_1 = paste(min(d2$'1'), max(d2$'1'), sep="-")
+R_2 = paste(min(d2$'2'), max(d2$'2'), sep="-")
+R_3 = paste(min(d2$'3'), max(d2$'3'), sep="-")
+R_4 = paste(min(d2$'4'), max(d2$'4'), sep="-")
+R_5 = paste(min(d2$'5'), max(d2$'5'), sep="-")
+
+LR1 = paste("LR1 =", L_1, R_5, sep=" ")
+LR2 = paste("LR2 =", L_2, R_4, sep=" ")
+LR3 = paste("LR3 =", L_3, R_3, sep=" ")
+LR4 = paste("LR4 =", L_4, R_2, sep=" ")
+LR5 = paste("LR5 =", L_5, R_1, sep=" ")
+LR1 = paste(LR1, ";", sep="")
+LR2 = paste(LR2, ";", sep="")
+LR3 = paste(LR3, ";", sep="")
+LR4 = paste(LR4, ";", sep="")
+LR5 = paste(LR5, ";", sep="")
+
+charlist_o[i] = paste(uce_CORE_listo, LR1, LR2, LR3, LR4, LR5, sep="\n")
+names(charlist_o[[i]]) = uce_list_odd[i]
+}
+
+xx  = as.matrix(charlist_o)
+row.names(xx) = uce_list_odd
+row.names(xx) = sub("./", "", row.names(xx))
+
+ix = rbind(xxx,xx) 
+row.names(ix) = gsub(".*/", "", row.names(ix))
+
+
+####################
+#R
+
+#phylip_files_list = list.files(pattern = ".phylip$", recursive = TRUE)
+config_files_list = list.files(pattern = ".cfg$", recursive = TRUE)
+config_files_list = config_files_list[-1] ##### if other .cfg file in directory
+### must be same length
+#phylip_files_list_1 = sub(".*/", "", phylip_files_list)
+len = length(phylip_files_list)
+len #1:368
+
+
+#XI = ix[row.names(ix) %in% phylip_files_list[i], ]
+
+
+for(i in 1:length(1:len)){
+phylip_files = readLines(phylip_files_list[i])
+phylip_lengths = sub(".* ", "", phylip_files)
+phylip_lengths = phylip_lengths[i]
+
+  
+
+XI = ix[row.names(ix) %in% phylip_files_list_1[i], ]
+
+
+#charlistsss = match(x, y, nomatch = 0)
+config_files = readLines(config_files_list[i])
+old = "All = 1-;"
+
+new_config_files = sub(old, XI, config_files)
+#letter <- phylip_lengths #i
+#rt <- paste0("All = 1-",letter, ";")
+#fin_len = sub(old, rt, old)
+
+#new_config_files = sub("All = 1-;", fin_len, config_files)
+
+oldy = "alignment = ;"
+let = phylip_files_list[i] #[i]
+letters = sub(".*/", "", let)
+rtt <- paste0("alignment = ",letters, ";")
+new_config_files = sub("alignment = ;", rtt, new_config_files)
+new_config_files
+
+
+
+config_name = config_files_list[i] #[i]
+config_name = sub("/partition_finder.cfg.*", "", config_name)
+
+#### Modify to working dir
+config_name = paste0("mafft-nexus-edge-trimmed-clean-70p-readyrunraxml/mrb/", config_name)
+
+save.path = config_name
+write(new_config_files, file=file.path(save.path, "partition_finder.cfg"))
+}
+
+#quit()
+#n
+
+####### cd to directory where sub folders are
+library("ips")
+
+setwd("~/Desktop/Philacol/phy_files/probe_design/mafft-nexus-edge-trimmed-clean-70p-readyrunraxml/mrb/")
+
+#parti_best = list.files(pattern = "best_parti.txt$", recursive = TRUE)
+phylip_files = list.files(pattern = ".phylip$", recursive = TRUE)
+#config_files_list = list.files(pattern = "best_scheme.txt$", recursive = TRUE)
+
+
+len = length(phylip_files)
+
+R
+
+
+library("ips")
+
+setwd("/mrb/")
+
+phylip_files = list.files(pattern = ".phylip$", recursive = TRUE)
+
+len = length(phylip_files)
+
+phylip_file = list()
+cmd =list()
+for(i in 1:length(1:len)){
+partition = "python partitionfinder-2.1.1/PartitionFinder.py"
+phylip_file[[i]] = paste("./", phylip_files[i], sep="")
+cmd[[i]] = paste(partition, phylip_file[[i]], "-p 2",sep=" ")
+}
+
+
+library(snow)     
+library(parallel)
+
+patitions = mclapply(cmd, system, mc.cores=getOption("mc.cores", 24)) ### = 48 cores
+
+
+ ## or use
+ 
+ 
+##########
+#for dir in uce-*; do
+#  for file in "${dir}"/*.phylip
+#do
+
+#python ~/Desktop/partitionfinder-2.1.1/PartitionFinder.py $file
+
+#done
+
+#done
+
+
+R
+setwd("/mrb")
+
+#gsub("begin mrbayes;,([[:digit:]])partition", "begin mrbayes;\\partition", parti_best)
+
+config_files_list = list.files(pattern = "best_scheme.txt$", recursive = TRUE)
+
+for(i in 1:length(config_files_list)){
+
+config_file = readChar(config_files_list[i], file.info(config_files_list[i])$size) ##[i]
+config_file1 = gsub(".*carefully before you use it.|\n*Citations.*", "", config_file)
+config_file1 = gsub("[*]", "", config_file1)
+config_file2 = gsub(".*Subset1 [=] |\n\n\tpartition.*", "", config_file1)
+config_file3 = gsub(",", "", config_file2)
+config_file3 = paste0("\n\tcharset Subset1 = ", config_file3)
+config_file4 = sub("\n\nbegin mrbayes;\n\n\tcharset.*" , "\n\nbegin mrbayes;\n\n\tcharset ", config_file1)
+config_file4 = sub("\n\nbegin mrbayes;\n\n\tcharset ", "\n\nbegin mrbayes;\n\n", config_file4)
+config_file5 = sub(".*\n\n\tpartition *" , "\n\n\tpartition ", config_file1)
+mbfile = paste0(config_file4, config_file3, config_file5)
+config_file6 = sub("\n\nend;\n\n\n\n", "", mbfile)
+config_file6 = sub("we've done our best to make it accurate, but there may be errors that remain!", "", config_file6) 
+mcmcbpart = "\n\tmcmcp ngen = 10000000 relburnin = yes burninfrac = 0.25 printfreq = 1000 samplefreq = 1000 nchains = 4 savebrlens = yes;
+	mcmc;
+	sump;
+	sumt;
+
+END;
+"
+mbfile2 = paste0(config_file6, mcmcbpart)
+
+save.path = "mrb/nex_blocks/"
+names  = config_files_list[i]
+names = sub("nexus.phylipnew_mrb/analysis/best_scheme.txt", "", names)
+this.name = names
+write(mbfile2, file=file.path(save.path, sprintf('%smb_block.txt', this.name)))
+
+}
+
+
+
+## concat nexus file and nexus block 
+files <- dir(".", recursive=TRUE, full.names=TRUE, pattern="\\.phylip$")
+
+### read in files
+df = list()
+for (i in 1:length(files)) {
+	df[[i]] <- read.phy(files[i])
+}
+for (i in 1:length(files)) {
+	    config_name = paste0("mrb/", files[i],"new_mrb.nexus") ### "mrb/" is the dir where your files are
+        config_name = sub("/./","/", config_name)
+save.path = config_name
+write.nex(df[[i]], file=file.path(save.path), interleave=FALSE)
+}
+
+nex_files_list = list.files(pattern = ".nexus$", recursive = TRUE)
+block_list = list.files(pattern = "._block.txt$", recursive = TRUE)
+
+for(i in 1:length(nex_files_list)){
+nex = readChar(nex_files_list[i], file.info(nex_files_list[i])$size) 
+block = readChar(block_list[i], file.info(block_list[i])$size) 
+
+mbfile3 = paste0(nex, block)
+
+#save.path = "UCE/mrb/test_dir/"
+#names  = nex_files_list[i]
+#names = sub("nexus/", "", names)
+#this.name = names
+config_name = paste0("/data/mvandam/UCE/mrb/", nex_files_list[i])
+save.path = config_name
+write(mbfile3, file=file.path(save.path))
+
+}
+nex_files_list = list.files(pattern = ".nexus$", recursive = TRUE)
+nex =list()
+for(i in 1:length(nex_files_list)){
+	nex[[i]] = readChar(nex_files_list[i], file.info(nex_files_list[i])$size)
+	nex[[i]] = sub("missing=N", "missing=?", nex[[i]])
+config_name = paste0("/data/mvandam/UCE/mrb/", nex_files_list[i])
+save.path = config_name
+write(nex[[i]], file=file.path(save.path))
+}
+
+
+#### run mrb through directories
+R
+#run gene tree reconstruction 
+setwd("nex_blocks_2/nex_blocks/") ## set wd to where your files are in their folders
+
+nex_files_list = list.files(pattern = "mrb.nexus$", recursive = TRUE)
+
+cmd =list()
+for(i in 1:length(nex_files_list)){
+	nex = paste("UCE/mrb/", nex_files_list[i], sep="") ### "UCE/mrb/" is the dir where your folders are
+mrbs = "mpirun -np 8 mb"
+
+cmd[[i]] = paste(mrbs, nex, sep=" ")
+}
+
+
+library(snow)     
+library(parallel)
+
+final_mrb = mclapply(cmd, system, mc.cores=getOption("mc.cores", 6)) ### = 6 x 8 cores, adjust accordingly
+
+
+#############################################################################################
+############# phthon dendropy summtrees clade credible trees ##############################
+#############################################################################################
+#####################################################
+
+R 
+library(phytools)
+library(ips)
+setwd("mrb/")
+
+
+dirs = list.dirs(path = ".", full.names = TRUE, recursive = FALSE)
+dirs=dirs[-1] ### remove any you do not want
+dirs = as.list(dirs)
+#dirs <- dir(".", recursive=TRUE, full.names=TRUE, pattern=".phylipnew_mrb$")
+run1treesp = list.files(pattern= "mrb.nexus.run1.t$", recursive= TRUE)
+#run2trees = list.files(pattern= "_mb.nex.run2.t$", recursive= TRUE)
+
+#subdir= list.dirs(recursive=FALSE) ## in list.dirs(recursive=FALSE)
+cmd = list()
+for (i in 1:length(run1treesp)) 
+{
+	
+
+out = paste0("--output-tree-filepath=", dirs[[i]], "_msct_con_result.tre", sep="")
+
+	 out = sub("./", "", out)
+
+	#for(i in 1:length(run1treesp)){
+ 	#setwd(dirs[i])
+ 	run1trees = list.files(dirs[[i]], pattern= "mrb.nexus.run1.t$", recursive= TRUE)
+	run2trees = list.files(dirs[[i]], pattern= "mrb.nexus.run2.t$", recursive= TRUE)
+
+ 	tree1 = paste(dirs[[i]], run1trees, sep="/")
+	tree2 = paste(dirs[[i]], run2trees, sep="/")
+	 
+	cmd[[i]] <- paste("sumtrees.py", "--multiprocessing=4", "--summary-target=mcct", 
+"--burnin=2500", "--support-as-labels", out, tree1, tree2, sep=" ")
+
+	
+
+#setwd('..')
+
+#setwd("nex_blocks/test/")
+
+}
+
+
+#system("sumtrees.py --multiprocessing=4 --summary-target=mcct --burnin=2500 --support-as-labels --output-tree-filepath=uce-1812.nexus.phylipnew_mrb_msct_con_result.tre ./uce-1812.nexus.phylipnew_mrb/uce-1812.nexus.phylipnew_mrb.nexus.run1.t ./uce-1812.nexus.phylipnew_mrb/uce-1812.nexus.phylipnew_mrb.nexus.run2.t")
+library(snow)     
+library(parallel)
+
+final_mrbtrees = mclapply(cmd, system, mc.cores=getOption("mc.cores", 12)) ###runs 48 cores 12 different loci at a time
+
+
+
+### ASTRAL cd to dir, copy all.merge.tre to astral dir
+R
+setwd("mrb/")
+library(ips)
+
+tre = read.nex("MrBayes_Eupho_all.merge.mcct.tre")
+
+
+cd ASTRAL/
+java -jar astral.4.10.12.jar -i MrBayes_Eupho_all.merge.mcct.tre -o MrBayes_Eupho_all.merge.mcct.tre.speciestr_out.tre
+
+java -jar astral.4.10.12.jar -i MrBayes_Eupho_all_msct.merge.tre -o Eupolini.speciestr_out.tre -a maping-file.txt 
+
+
+##### ASTRAL for mrb bootstraping
+R
+library(snow)     
+library(parallel)
+
+setwd("~/data/UCE/mrb/")
+
+dirs = list.dirs(path = ".", full.names = TRUE, recursive = FALSE)
+dirs=dirs[-c(1,2,3,4,5)]
+dirs = as.list(dirs)
+#dirs <- dir(".", recursive=TRUE, full.names=TRUE, pattern=".phylipnew_mrb$")
+run1treesp = list.files(pattern= "mrb.nexus.run1.t$", recursive= TRUE)
+
+cmd = list()
+for (i in 1:length(run1treesp)) 
+{
+out = paste0(dirs[[i]], "_combinedMrB_for_astralboot.tre", sep="")
+
+	 out = sub("./", "", out)
+
+	#for(i in 1:length(run1treesp)){
+ 	#setwd(dirs[i])
+ 	run1trees = list.files(dirs[[i]], pattern= "mrb.nexus.run1.t$", recursive= TRUE)
+	run2trees = list.files(dirs[[i]], pattern= "mrb.nexus.run2.t$", recursive= TRUE)
+
+ 	tree1 = paste(dirs[[i]], run1trees, sep="/")
+	tree2 = paste(dirs[[i]], run2trees, sep="/")
+	tree1 = sub("./", "/", tree1)
+	tree2 = sub("./", "/", tree2)
+	tree1 = paste("../../mrb", tree1, sep="")
+	tree2 = paste("../../mrb", tree2, sep="")
+	 
+	#cmd[[i]] <- paste("./logcombiner -renumber -burnin 2500 -trees", tree1,  tree2, out, sep=" ") ## old logcombiner
+	cmd[[i]] <- paste("./logcombiner -b 25 -log", tree1,  "-log", tree2, "-o", out, sep=" ")
+
+}
+#java -cp 
+
+#setwd("/data/mvandam/UCE/BEASTv1.8.4/bin/")
+setwd("/data/mvandam/UCE/beast/bin/")
+final_mrbtrees = lapply(cmd, system)
+#final_mrbtrees = mclapply(cmd, system, mc.cores=getOption("mc.cores", 12)) ###runs 48 cores 12 different loci at a time
+
+###### in terminal
+#cd to dir with mrb .t files
+
+mkdir trees_to_combine
+
+find . -iname "*mrb.nexus.run1.t" -exec cp {} trees_to_combine/ \;
+find . -iname "*mrb.nexus.run2.t" -exec cp {} trees_to_combine/ \;
+
+#find . -name '*mrb.nexus.run*' -exec sh -c 'NEWDIR=`basename "$1new_mrb" ` ; mkdir "$NEWDIR" ; mv "$1" "$NEWDIR" ' _ {} \;
+
+if [[ `ls | grep -c .t` == 0 ]]
+then
+        echo "NO TREE FILES"
+else
+        for src in *.t
+        do
+                trees=${src%%.nexus.phylipnew_mrb.*}
+                treeslength=$((${#trees}))
+                letter=${trees:0:8}
+                trees=${trees:0:$treeslength}
+                mkdir -p "./$letter/"
+                mv -u "$src" "./$letter/"
+        done
+        fi
+
+
+
+for dir in uce-*; do
+
+run1t="${dir}.nexus.phylipnew_mrb.nexus.run1.t"
+run2t="${dir}.nexus.phylipnew_mrb.nexus.run2.t"
+
+cd "${dir}"
+for f in $(ls *1.t); do
+
+grep -v -e "tree gen" -e "end;" "${run1t}" > combined.t
+paste -d"\n" <(grep "tree gen" "${run1t}") <(grep "tree gen" "${run2t}") >> combined.t
+echo "end;" >> combined.t
+cd ..
+done
+done
+
+R
+setwd("trees_to_combine/")
+
+#gsub("begin mrbayes;,([[:digit:]])partition", "begin mrbayes;\\partition", parti_best)
+
+config_files_list = list.files(pattern = "combined.t$", recursive = TRUE)
+
+for(i in 1:length(config_files_list)){
+
+config_file = readChar(config_files_list[i], file.info(config_files_list[i])$size) ##[i]
+
+config_file1 = gsub("   tree gen.0.*   tree gen.2501000", "   tree gen.2501000", config_file)
+
+
+names  = config_files_list[i]
+names = sub("/combined.t", "", names)
+save.path = paste("trees_to_combine/", names, sep="")
+names = paste(names, "combined_mrb_noburnin", sep="")
+this.name = names
+write(config_file1, file=file.path(save.path, sprintf('%s.tre', this.name)))
+
+}
+
+
+### read in files
+library(ips)
+files = list.files(pattern = ".*combined_mrb_noburnin.tre$", recursive = TRUE)
+df = list()
+for (i in 1:length(files)) {
+	df[[i]] <- read.nexus(files[i])
+}
+file_names_path = list()
+for (i in 1:length(files)) {
+names  = files[i]
+#names = "uce-99/uce-99combined_mrb_noburnin.tre"
+file_names = sub(".tre", "_phylip.tre", names)
+save.path = paste("trees_to_combine/", names, sep="")
+save.path = sub("(/[^/]*)$", "/", save.path)
+save.path = sub("combine/.*", "combine", save.path)
+#file_names_path[[i]] = paste(save.path, "/", file_names, sep="")
+
+write.tree(df[[i]], file=file.path(save.path, file_names))
+}
+### if many files may want to change to an mclapply uncoment in loop above (and coment out last line) and use below
+#mclapply(df[[i]], write.tree, file=file_names_path[[i]], mc.cores=getOption("mc.cores", 48))
+files = list.files(pattern = ".*_phylip.tre$", recursive = TRUE)
+
+cp MrBayes_Eupho_all.merge.mcct.tre ASTRAL-gpu-development/
+
+cd Astral
+## fill path to java , may have to do this for your linux machine
+
+java-8-oracle/bin/java -jar astral.5.1.0.jar -i MrBayes_Eupho_all.merge.mcct.tre -b bootstrap_mrb_trees_output.txt -r 14999 -T 24 -o MrBayes_Eupho_all.merge.mcct.BOOT.speciestr_out.tre  
+ or use below 
+java-8-oracle/bin/java -jar astral.5.1.0.jar -i MrBayes_Eupho_all.merge.mcct.tre -b bootstrap_mrb_trees_output.txt -r 14999 -o MrBayes_Eupho_all.merge.mcct.BOOT.speciestr_out1.tre
+
+cd Astral
+cp all.merge.* ASTRAL-multiind/ 
+cp bootstrap-lowbs*. ASTRAL-multiind/
+cd ..
+
+#### for raxml
+cd ASTRAL-multiind/
+java -jar astral.5.1.0.jar -i all.merge.boot_straped.tre -b all.merge.boot_strapped_actualbstrees.tre -r 200 -o Eupho_all.merge.BOOT.speciestr_out.allboottrees.tre
+
+java -jar astral.5.1.0.jar -i all.merge.minus_lowBS.tre -b bootstrap-lowbs_trees_output.txt -r 200 -o Eupho_all.merge.BOOT.speciestr_out-lowbs.tre 
+
+java -jar astral.5.1.0.jar -i all.merge.minus_lowBS_Oversaturated.tre -b bootstrap-lowbs-overstaurated_trees_output.txt -r 200 -o Eupho_all.merge.BOOT.speciestr_out-lowbs-sat.tre
+
+
+
+
+
+####
+##### SVDQUARTETS
+
+
+ mkdir nexus_for_concat
+ mkdir log
+ find . -iname "*.nexus.phylipnew_mrb.nexus" -exec cp {} nexus_for_concat/ \;
+ phyluce_align_format_nexus_files_for_raxml \
+    --alignments nexus_for_concat \
+    --output Eupho_allconcat_partitionedbygene.phy \
+    --charsets \
+    --log-path log
+
+ phy = read.phy("tree_results_mrB_mcct/nexus_for_concat.phylip")
+ write.nex(phy, file = "Eupho_allconcat_partitionedbygene.nex", interleave=FALSE)
+ 
+ ./paup4a152_osx
+execute Eupho_allconcat.nex; 
+SVDQuartets evalQuartets=all partition=Euphospecies speciesTree=no showScores=yes  
+SVDQuartets evalQuartets=all speciesTree=no showScores=yes bootstrap nreps=200 nthreads=4
+savetrees from=1 to=1 savebootp=nodelabels file=Euphospeciestree_bootlables.svdq.tre
+
+;
+
+#SVDQuartets evalQuartets=all speciesTree=no seed=1234568 bootstrap;
+
+
+
