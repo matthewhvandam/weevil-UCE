@@ -527,6 +527,41 @@ done
 
 done 
 
+############################ R example run RAxML in parallel
+R
+#run gene tree reconstruction 
+setwd(" ")
+library("ips")
+phy_files_list = list.files(pattern = "loci.phy$", recursive = TRUE) #change to match file extension
+dirs = list.dirs(path = ".", full.names = TRUE, recursive = TRUE)
+dirs = gsub("./", "", dirs)
+dirs = dirs[-1]
+cmd =list()
+name=list()
+file=list()
+cmd1 = list()
+cmd2 = list()
+for(i in 1:length(phy_files_list)){
+	name[[i]] = paste(phy_files_list[i],"best.tre", sep="")
+	name[[i]] = sub(".*/", "", name[[i]])
+	file[[i]] = phy_files_list[i]
+	file[[i]] = sub(".*/", "", file[[i]])
+cmd1[[i]] = paste("cd", dirs[i], sep=" ") 
+cmd2[[i]] = paste(cmd1[[i]], ";", sep="")
+cmd[[i]] = paste(cmd2[[i]], "raxmlHPC-PTHREADS-SSE3 -m GTRGAMMA -N 20 -p 19876", "-n", name[[i]], "-q best_parti.txt", "-s", file[[i]], "-T 2",sep=" ")
+
+}
+
+
+library(snow)     
+library(parallel)
+
+final_raxml = mclapply(cmd, system, mc.cores=getOption("mc.cores", 12)) ## = 24 cores
+#######################
+
+
+
+
 #### cd to directory with all folders
 ##perhaps put tree_results dir one above
 
